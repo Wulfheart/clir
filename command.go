@@ -15,6 +15,7 @@ type Command struct {
 	longdescription   string
 	subCommands       []*Command
 	subCommandsMap    map[string]*Command
+	requiredArguments []RequiredArgument
 	longestSubcommand int
 	actionCallback    Action
 	app               *Cli
@@ -77,6 +78,20 @@ func (c *Command) run(args []string) error {
 			return subcommand.run(args[1:])
 		}
 
+		// Parse required args
+		fmt.Println("Args:", args)
+		for i, req := range c.requiredArguments{
+			currentArg := args[i]
+			fmt.Println(currentArg)
+			if strings.HasPrefix(currentArg, "-"){
+				fmt.Printf("Error: %s\n\n", "Couldn't find required argument, flag given instead")
+				c.PrintHelp()
+				return fmt.Errorf("couldn't find required argument, flag given instead")
+			}
+			*req.Variable = args[i]
+		}
+		fmt.Println("Here")
+
 		// Parse flags
 		err := c.parseFlags(args)
 		if err != nil {
@@ -84,6 +99,8 @@ func (c *Command) run(args []string) error {
 			c.PrintHelp()
 			return err
 		}
+
+		fmt.Println(c.helpFlag)
 
 		// Help takes precedence
 		if c.helpFlag {
@@ -125,7 +142,7 @@ func (c *Command) Action(callback Action) *Command {
 func (c *Command) PrintHelp() {
 	c.app.PrintBanner()
 
-	commandTitle := c.commandPath
+	commandTitle := c.commandPath + "N"
 	if c.shortdescription != "" {
 		commandTitle += " - " + c.shortdescription
 	}
@@ -227,4 +244,10 @@ func (c *Command) LongDescription(longdescription string) *Command {
 // OtherArgs - Returns the non-flag arguments passed to the subcommand. NOTE: This should only be called within the context of an action.
 func (c *Command) OtherArgs() []string {
 	return c.flags.Args()
+}
+
+// TODO
+func (c *Command) AddRequiredArguments(required []RequiredArgument) *Command{
+	c.requiredArguments = append(c.requiredArguments, required...)
+	return c
 }
